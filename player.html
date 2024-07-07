@@ -1,0 +1,344 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
+<link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+/>
+
+<div class="player-container" style="display: none">
+    <div class="player">
+        <div class="wrapper">
+            <div class="controls">
+                <div class="sound">
+                    <button id="play-pause">
+                        <i class="fas fa-pause"></i>
+                    </button>
+                    <div style="padding-right: 20px"></div>
+                    <div class="title">
+                        <span id="song">Song Title</span>
+                        <div id="time-display">00:00 / 00:00</div>
+                    </div>
+                </div>
+                <div class="player-controls">
+                    <button id="mute-unmute">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                    <div style="padding-right: 20px"></div>
+                    <input
+                        type="range"
+                        id="volume"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value="1"
+                    />
+                </div>
+            </div>
+            <div id="timeline">
+                <div id="progress"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    var sound;
+    var currentAudioButton = null;
+    var isMuted = false;
+
+    document.addEventListener("DOMContentLoaded", function () {
+        var allLinks = document.querySelectorAll(
+            "a[href*='selstorage.ru'][href$='.mp3']"
+        );
+
+        allLinks.forEach(function (link) {
+            link.addEventListener("click", function (event) {
+                event.preventDefault();
+
+                if (currentAudioButton) {
+                    currentAudioButton.style.backgroundColor = "";
+                }
+
+                currentAudioButton = this;
+                var audioUrl = decodeURIComponent(this.href);
+                var fileName = audioUrl.substring(
+                    audioUrl.lastIndexOf("/") + 1
+                );
+
+                if (sound) {
+                    sound.stop();
+                }
+
+                sound = new Howl({
+                    src: [audioUrl],
+                    html5: true,
+                    onplay: function () {
+                        updateProgress();
+                        var playPauseButton =
+                            document.getElementById("play-pause");
+                        playPauseButton.innerHTML =
+                            '<i class="fas fa-pause"></i>';
+                    },
+                    onpause: function () {
+                        var playPauseButton =
+                            document.getElementById("play-pause");
+                        playPauseButton.innerHTML =
+                            '<i class="fas fa-play"></i>';
+                    },
+                    onend: function () {
+                        document.getElementById("time-display").innerText =
+                            "00:00 / 00:00";
+                        var playPauseButton =
+                            document.getElementById("play-pause");
+                        playPauseButton.innerHTML =
+                            '<i class="fas fa-play"></i>';
+                    },
+                    volume: document.getElementById("volume").value,
+                });
+
+                sound.play();
+
+                document.getElementById("song").innerText =
+                    fileName || "Unknown Name";
+
+                this.style.backgroundColor = "DeepPink";
+                this.style.borderRadius = "20px";
+
+                document.querySelector(".player-container").style.display =
+                    "block";
+
+                var muteButton = document.getElementById("mute-unmute");
+                muteButton.innerHTML = isMuted
+                    ? '<i class="fas fa-volume-off"></i>'
+                    : '<i class="fas fa-volume-up"></i>';
+            });
+        });
+
+        document
+            .getElementById("play-pause")
+            .addEventListener("click", function () {
+                if (sound) {
+                    if (sound.playing()) {
+                        sound.pause();
+                    } else {
+                        sound.play();
+                    }
+                }
+            });
+
+        document
+            .getElementById("mute-unmute")
+            .addEventListener("click", function () {
+                if (sound) {
+                    isMuted = !isMuted;
+                    sound.mute(isMuted);
+                    var muteButton = document.getElementById("mute-unmute");
+                    muteButton.innerHTML = isMuted
+                        ? '<i class="fas fa-volume-off"></i>'
+                        : '<i class="fas fa-volume-up"></i>';
+                }
+            });
+
+        document
+            .getElementById("timeline")
+            .addEventListener("click", function (event) {
+                if (sound) {
+                    var timelineWidth = this.offsetWidth;
+                    var clickPosition = event.offsetX;
+                    var seekPosition =
+                        (clickPosition / timelineWidth) * sound.duration();
+                    sound.seek(seekPosition);
+                    if (sound.playing()) {
+                        sound.pause();
+                    } else {
+                        sound.play();
+                    }
+                }
+            });
+
+        document
+            .getElementById("volume")
+            .addEventListener("input", function () {
+                if (sound) {
+                    sound.volume(this.value);
+                }
+            });
+    });
+
+    function updateProgress() {
+        var progress = document.getElementById("progress");
+        var timeDisplay = document.getElementById("time-display");
+
+        requestAnimationFrame(function () {
+            if (sound) {
+                var seek = sound.seek() || 0;
+                var duration = sound.duration() || 0;
+                progress.style.width = (seek / duration) * 100 + "%";
+                timeDisplay.innerText =
+                    formatTime(seek) + " / " + formatTime(duration);
+                if (sound.playing()) {
+                    updateProgress();
+                }
+            }
+        });
+    }
+
+    function formatTime(time) {
+        var minutes = Math.floor(time / 60);
+        var seconds = Math.floor(time % 60);
+        return (
+            (minutes < 10 ? "0" : "") +
+            minutes +
+            ":" +
+            (seconds < 10 ? "0" : "") +
+            seconds
+        );
+    }
+</script>
+
+<style>
+    .t-popup_show {
+        z-index: 9000;
+    }
+    .player-container {
+        z-index: 9999;
+    }
+    .wrapper {
+        display: flex;
+        flex-direction: column;
+    }
+    .controls {
+        display: flex;
+        justify-content: space-between;
+    }
+    .sound {
+        display: flex;
+        justify-content: center;
+    }
+    .title {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        color: white;
+    }
+    .player {
+        position: fixed;
+        left: 300px;
+        bottom: 3px;
+        width: 70%;
+        padding: 10px;
+        text-align: center;
+        z-index: 10000;
+        background-color: #333;
+        border-radius: 10px;
+        /* box-shadow: 0 0 30px 1px deeppink; */
+    }
+    #time-display {
+    }
+    #timeline {
+        width: 100%;
+        height: 10px;
+        background-color: #555;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+    #progress {
+        width: 0;
+        height: 100%;
+        background-color: deeppink;
+        border-radius: 5px;
+    }
+    .player-controls {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    button {
+        background-color: deeppink;
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    button:hover {
+        background-color: #ff6580;
+    }
+    #volume {
+        width: 100px;
+        cursor: pointer;
+    }
+
+    #mute-unmute {
+        width: 30px; /* Fixed width to avoid movement */
+        font-size: 16px; /* Ensure consistent icon size */
+        background-color: deeppink;
+        border: none;
+        color: white;
+        padding: 10px 10px; /* Maintain vertical padding */
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .controls-player > input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 2px;
+        background-color: #555;
+        border-radius: 5px;
+        outline: none;
+        position: relative;
+        z-index: 1;
+    }
+
+    .controls-player > input[type="range"]::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 2px;
+        cursor: pointer;
+        background: #555;
+        border-radius: 5px;
+        z-index: 1;
+    }
+
+    .controls-player > input[type="range"]::-moz-range-track {
+        width: 100%;
+        height: 2px;
+        cursor: pointer;
+        background: #555;
+        border-radius: 5px;
+        z-index: 1;
+    }
+
+    .controls-player > input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 10px;
+        height: 10px;
+        background-color: deeppink;
+        border-radius: 50%;
+        cursor: pointer;
+        position: relative;
+        z-index: 2;
+        top: -4px; /* Adjust this value as needed */
+    }
+
+    .controls-player > input[type="range"]::-moz-range-thumb {
+        width: 10px;
+        height: 10px;
+        background-color: deeppink;
+        border-radius: 50%;
+        cursor: pointer;
+        z-index: 2;
+        position: relative;
+        top: -4px; /* Adjust this value as needed */
+    }
+
+    /* Adjust thumb position for Chromium browsers */
+    @media screen and (-webkit-min-device-pixel-ratio: 0) {
+        .controls-player > input[type="range"]::-webkit-slider-thumb {
+            position: relative;
+            z-index: 2; /* Ensure thumb is above the line */
+        }
+    }
+</style>
